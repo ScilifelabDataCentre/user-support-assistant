@@ -1,2 +1,144 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and IDE files
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# Local environment and secrets
+.env
+.env.*
+*.env
+!.env.example
+!*.env.example
+secrets/
+*.pem
+*.key
+credentials*.json
+service-account*.json
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+
+# Dependencies and generated output
 node_modules/
-.lycheecache
+.lycheecache/
+.cache/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.conda/
+
+# Testing, linting and type checking
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Frontend frameworks (if used)
+.next/
+.nuxt/
+.svelte-kit/
+.streamlit/secrets.toml
+.chainlit/
+.gradio/
+
+# --- RAG / AI agent specific ---
+
+# Vector stores and local indexes
+chroma/
+chroma_db/
+.chroma/
+chromadb/
+faiss_index/
+*.faiss
+*.index
+lancedb/
+.lancedb/
+qdrant_storage/
+milvus/
+weaviate_data/
+vectorstore/
+vector_store/
+storage/
+index_store/
+
+# Embedding and document caches
+embeddings/
+*.npy
+*.npz
+*.pkl
+*.pickle
+.embeddings_cache/
+.llm_cache/
+.langchain.db
+*.sqlite
+*.sqlite3
+*.db
+
+# Local models and weights
+models/
+*.gguf
+*.ggml
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+.huggingface/
+hf_cache/
+
+# Raw / processed data (keep small fixtures in tests/ or data/sample/)
+data/raw/
+data/processed/
+data/private/
+!data/sample/
+
+# Observability, tracing and evaluation output
+.langsmith/
+.langfuse/
+mlruns/
+wandb/
+.phoenix/
+eval_results/
+outputs/
+traces/
+
+# Local Claude Code settings
+.claude/settings.local.json
