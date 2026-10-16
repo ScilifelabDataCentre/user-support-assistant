@@ -142,3 +142,6 @@ traces/
 
 # Local Claude Code settings
 .claude/settings.local.json
+
+# Other files to ignore
+.vscode
