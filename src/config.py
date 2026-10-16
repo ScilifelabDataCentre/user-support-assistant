@@ -22,9 +22,18 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
+# Web server (used by main.py at the repo root)
+HOST = os.getenv("HOST", "127.0.0.1")
+PORT = int(os.getenv("PORT", "8000"))
+# Restart the server when code changes; set RELOAD=true in dev.env for development
+RELOAD = os.getenv("RELOAD", "false").lower() == "true"
+
 
 def require(*names):
     """Raise if any of the named settings is not set, e.g. require("OPENLLM_API_KEY")."""
-    missing = [n for n in names if not globals().get(n)]
+    missing = []
+    for name in names:
+        if not globals().get(name):
+            missing.append(name)
     if missing:
         raise RuntimeError(f"missing settings: {', '.join(missing)} (set them in dev.env or the environment)")
