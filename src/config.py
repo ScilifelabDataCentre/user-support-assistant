@@ -21,6 +21,8 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+# Collection that holds the knowledge base chunks
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
 # Web server (used by main.py at the repo root)
 HOST = os.getenv("HOST", "127.0.0.1")

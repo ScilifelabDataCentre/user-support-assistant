@@ -1,7 +1,7 @@
 """Knowledge base ingestion API.
 
-POST /api/ingestion starts a knowledge base ingestion (crawl -> chunk -> embed -> save,
-see kb_develop/ingestion.py) and returns at once with 202 Accepted; the ingestion runs
+POST /api/ingestion starts a knowledge base ingestion (crawl -> chunk -> embed ->
+save -> deploy, see kb_develop/ingestion.py) and returns at once with 202 Accepted; the ingestion runs
 in the background, because it takes longer than an HTTP request should wait.
 
 Only one ingestion runs at a time: a request while one is running gets 409 Conflict.
@@ -31,10 +31,10 @@ class IngestionStarted(BaseModel):
     message: str
 
 
-def run_in_background(client):
+def run_in_background(openai_client, qdrant_client):
     """Run the ingestion, log the error if it fails, and release the lock when done."""
     try:
-        run_ingestion(client)
+        run_ingestion(openai_client, qdrant_client)
     except Exception:
         logger.exception("Knowledge base ingestion failed")
     finally:
@@ -43,13 +43,15 @@ def run_in_background(client):
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED, response_model=IngestionStarted)
 def start_ingestion(request: Request, background_tasks: BackgroundTasks):
-    """Start a knowledge base ingestion in the background (crawl -> chunk -> embed -> save)."""
+    """Start a knowledge base ingestion in the background
+    (crawl -> chunk -> embed -> save -> deploy)."""
     if not ingestion_lock.acquire(blocking=False):
         raise HTTPException(status.HTTP_409_CONFLICT, "A knowledge base ingestion is already running.")
 
-    # The shared API client, created at startup (see app.py).
-    client = request.app.state.openai_client
-    background_tasks.add_task(run_in_background, client)
+    # The shared clients, created at startup (see app.py).
+    openai_client = request.app.state.openai_client
+    qdrant_client = request.app.state.qdrant_client
+    background_tasks.add_task(run_in_background, openai_client, qdrant_client)
     logger.info("Knowledge base ingestion started")
     return IngestionStarted(
         status="started",

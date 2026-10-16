@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from api import health, ingestion
-from clients import openai_client
+from clients import openai_client, qdrant_client
 from logging_setup import setup_logging
 
 setup_logging()
@@ -22,10 +22,12 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app):
     """Create shared resources at startup and clean them up at shutdown."""
-    # One API client for the whole app; missing settings stop the app at startup.
+    # One client of each for the whole app; missing settings stop the app at startup.
     app.state.openai_client = openai_client()
+    app.state.qdrant_client = qdrant_client()
     yield
     app.state.openai_client.close()
+    app.state.qdrant_client.close()
 
 
 app = FastAPI(title="User Support Assistant", lifespan=lifespan)
