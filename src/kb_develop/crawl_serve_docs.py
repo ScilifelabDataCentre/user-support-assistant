@@ -108,11 +108,14 @@ def filename_for(page_url, titles, used):
     return name + ".md"
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("-o", "--output", default=str(Path(__file__).parent / "output"))
-    args = ap.parse_args()
-    out = Path(args.output) / datetime.now().strftime("%Y%m%d-%H%M%S")  # output/yyyymmdd-hhmmss/
+OUTPUT_ROOT = Path(__file__).parent / "output"
+
+
+def crawl(output_root=OUTPUT_ROOT):
+    """Crawl all pages into output_root/yyyymmdd-hhmmss/source/ and return the
+    run directory (output_root/yyyymmdd-hhmmss/)."""
+    run_dir = Path(output_root) / datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = run_dir / "source"
     out.mkdir(parents=True, exist_ok=True)
 
     session = requests.Session()
@@ -143,6 +146,14 @@ def main():
     print(f"Done: {len(urls) - len(failed)} saved, {len(failed)} failed")
     for u in failed:
         print("  failed:", u)
+    return run_dir
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("-o", "--output", default=str(OUTPUT_ROOT))
+    args = ap.parse_args()
+    crawl(args.output)
 
 
 if __name__ == "__main__":
