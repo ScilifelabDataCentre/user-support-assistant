@@ -7,7 +7,7 @@ GET /health returns 200 {"status": "ok"} while the app is running, so a deployme
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["system"])
 
 
 class Health(BaseModel):

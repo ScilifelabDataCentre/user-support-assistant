@@ -18,7 +18,7 @@ from kb_develop.ingestion import run_ingestion
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/ingestion", tags=["ingestion"])
+router = APIRouter(prefix="/ingestion", tags=["admin"])
 
 # Held while an ingestion is running, so a second one cannot start.
 ingestion_lock = threading.Lock()
