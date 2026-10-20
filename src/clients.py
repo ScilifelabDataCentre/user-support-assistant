@@ -29,7 +29,11 @@ def qdrant_client():
     """Client for the Qdrant vector database at QDRANT_URL.
     It only connects on its first request, so the app can start while Qdrant is down.
     QDRANT_COLLECTION is checked here too, so a missing collection name stops the app
-    at startup instead of failing at the end of an ingestion."""
+    at startup instead of failing at the end of an ingestion.
+    cloud_inference=True makes the client send text documents (models.Document) to
+    the Qdrant server (on our infrastructure), which turns them into BM25 vectors (see kb_develop/deploy.py);
+    despite its name it works with any Qdrant server >= 1.15.2, not only Qdrant Cloud.
+    Without it, the client would compute them itself and need the fastembed package."""
     config.require("QDRANT_URL", "QDRANT_API_KEY", "QDRANT_COLLECTION")
 
     # With an http:// URL, qdrant-client warns that the API key is sent unencrypted.
@@ -38,5 +42,5 @@ def qdrant_client():
     if urlparse(config.QDRANT_URL).hostname in LOCAL_HOSTS:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="Api key is used with an insecure connection")
-            return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY)
-    return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY)
+            return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, cloud_inference=True)
+    return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, cloud_inference=True)
