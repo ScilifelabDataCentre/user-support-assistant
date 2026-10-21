@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from ai_agents.graph import build_rag_graph
 from api import health, ingestion, user_support
 from clients import openai_client, qdrant_client
 from logging_setup import setup_logging
@@ -26,6 +27,8 @@ async def lifespan(app):
     # One client of each for the whole app; missing settings stop the app at startup.
     app.state.openai_client = openai_client()
     app.state.qdrant_client = qdrant_client()
+    # The RAG graph behind POST /api/user-support, built once with the shared clients.
+    app.state.rag_graph = build_rag_graph(app.state.openai_client, app.state.qdrant_client)
     yield
     app.state.openai_client.close()
     app.state.qdrant_client.close()

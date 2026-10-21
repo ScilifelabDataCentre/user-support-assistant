@@ -1,5 +1,6 @@
 beautifulsoup4==4.15.0
 fastapi==0.143.2
+langgraph==1.2.16
 openai==3.31.0
 python-dotenv==1.2.4
 qdrant-client==1.19.1

@@ -1,0 +1,40 @@
+"""RAG graph for the user support API: answer a user's question from the knowledge base.
+
+RAG steps, run by two LangGraph nodes: retrieve (Steps 1-3) and generate_answer
+(Steps 4-6). Each step is one function in nodes.py.
+
+  Step 1. Embed the question: turn the question into a dense vector with
+          EMBEDDING_MODEL, the same model the chunks were embedded with
+          (see kb_develop/embed.py).
+  Step 2. Hybrid search: one Qdrant query on QDRANT_COLLECTION that runs two searches
+          and fuses their results with Reciprocal Rank Fusion (RRF, by rank only):
+            - dense: the question vector against the chunks' dense vector (meaning);
+            - sparse: the question as a BM25 document against the chunks' sparse
+              vector (keywords); Qdrant computes its BM25 vector on the server.
+          Each search returns PREFETCH_LIMIT candidates; the fused list keeps the best TOP_K.
+  Step 3. Select chunks: keep each found chunk's text and metadata (title, headings,
+          links, type), numbered 1..n in fused order; the numbers are the citations
+          in the answer.
+  Step 4. Build the prompt: the system prompt (rules), then one user message with the
+          numbered chunks and the question.
+  Step 5. Call the LLM: LLM_MODEL answers in English from the chunks only, citing
+          them as [1], [2], ... If the chunks do not answer the question, the system
+          prompt tells it to say so and suggest contacting the SciLifeLab Serve team.
+  Step 6. Add sources: keep the chunks the answer actually cites as its sources, and
+          append them to the answer as a "Sources:" list (number, title, link).
+
+Graph:
+
+  START -> retrieve (Steps 1-3) -> generate_answer (Steps 4-6) -> END
+
+Files:
+
+  state.py     RagState: the data passed between the nodes
+  prompts.py   the system prompt, the user prompt templates and the "Sources:" list
+               format
+  nodes.py     the step functions (Steps 1-6) and the two nodes that run them
+  graph.py     the graph builder: build_rag_graph(), called once at startup (app.py)
+  llm_chat.py  the service the API calls: llm_chat() runs the graph for one question
+
+Calls: POST /api/user-support (api/user_support.py) -> llm_chat() -> the RAG graph.
+"""
