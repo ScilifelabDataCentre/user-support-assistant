@@ -1,4 +1,5 @@
-"""Prompts and the "Sources:" list format of the RAG graph (used by nodes.py)."""
+"""Prompts and the "Sources:" list format of the generate_answer node
+(used by nodes/generate_answer.py)."""
 
 # Step 4: the rules the LLM follows for every answer.
 SYSTEM_PROMPT = """\
@@ -34,7 +35,8 @@ Documentation chunks:
 
 Question: {question}"""
 
-# Step 6: the list of cited chunks appended to the answer, e.g.
+# Step 6: the list of cited chunks appended to the answer (the [n] citations are
+# removed from the answer; the sources are renumbered 1..n), e.g.
 #   Sources:
 #   [1] Application hosting > Shiny app hosting > Step 6. Create an app: https://...
 SOURCES_HEADER = "Sources:"

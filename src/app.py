@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from ai_agents.graph import build_rag_graph
+from ai_agents.graph.rag_graph import build_rag_graph
 from api import health, ingestion, user_support
 from clients import openai_client, qdrant_client
 from logging_setup import setup_logging

@@ -2,9 +2,9 @@
 
 POST /api/user-support takes the user's question as a string and returns one JSON
 response (no streaming):
-  - answer: the full RAG-generated answer, citing documentation sections as [1], [2],
-    ..., followed by a "Sources:" list of the cited sections with their links;
-  - sources: the metadata of the cited sections, each with the "number" it is cited by.
+  - answer: the full RAG-generated answer, followed by a "Sources:" list of the
+    documentation sections it uses, numbered 1..n, with their links;
+  - sources: the metadata of those sections, each with its "number" in that list.
 
 The answer comes from the LLM chat service (ai_agents/llm_chat.py), which runs the
 RAG graph built once at startup (see app.py).
@@ -25,9 +25,9 @@ class UserSupportRequest(BaseModel):
 
 
 class Source(BaseModel):
-    """A documentation section the answer cites."""
+    """A documentation section the answer uses."""
 
-    number: int = Field(description="The number the answer cites it with, e.g. 1 for [1].")
+    number: int = Field(description='Its number in the "Sources:" list, 1..n.')
     page_title: str = Field(description="Title of the docs page.")
     headings: list[str] = Field(description="Heading path of the section within the page.")
     section_url: str = Field(description="Link to the section on the SciLifeLab Serve site.")
@@ -39,7 +39,7 @@ class UserSupportResponse(BaseModel):
     """Response of POST /api/user-support."""
 
     answer: str = Field(description='The full answer, followed by its "Sources:" list.')
-    sources: list[Source] = Field(description="Metadata of the sections the answer cites.")
+    sources: list[Source] = Field(description="Metadata of the sections the answer uses.")
 
 
 @router.post("", response_model=UserSupportResponse)

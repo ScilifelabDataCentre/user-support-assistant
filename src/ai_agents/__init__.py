@@ -1,7 +1,7 @@
 """RAG graph for the user support API: answer a user's question from the knowledge base.
 
 RAG steps, run by two LangGraph nodes: retrieve (Steps 1-3) and generate_answer
-(Steps 4-6). Each step is one function in nodes.py.
+(Steps 4-6). Each node is one file in nodes/, with one function per step.
 
   Step 1. Embed the question: turn the question into a dense vector with
           EMBEDDING_MODEL, the same model the chunks were embedded with
@@ -13,15 +13,16 @@ RAG steps, run by two LangGraph nodes: retrieve (Steps 1-3) and generate_answer
               vector (keywords); Qdrant computes its BM25 vector on the server.
           Each search returns PREFETCH_LIMIT candidates; the fused list keeps the best TOP_K.
   Step 3. Select chunks: keep each found chunk's text and metadata (title, headings,
-          links, type), numbered 1..n in fused order; the numbers are the citations
-          in the answer.
+          links, type), numbered 1..n in fused order; the LLM cites the chunks by
+          these numbers.
   Step 4. Build the prompt: the system prompt (rules), then one user message with the
           numbered chunks and the question.
   Step 5. Call the LLM: LLM_MODEL answers in English from the chunks only, citing
           them as [1], [2], ... If the chunks do not answer the question, the system
           prompt tells it to say so and suggest contacting the SciLifeLab Serve team.
-  Step 6. Add sources: keep the chunks the answer actually cites as its sources, and
-          append them to the answer as a "Sources:" list (number, title, link).
+  Step 6. Add sources: keep the chunks the answer actually cites as its sources,
+          renumbered 1..n; remove the [n] citations from the answer and append the
+          sources to it as a "Sources:" list (number, title, link).
 
 Graph:
 
@@ -29,12 +30,16 @@ Graph:
 
 Files:
 
-  state.py     RagState: the data passed between the nodes
-  prompts.py   the system prompt, the user prompt templates and the "Sources:" list
-               format
-  nodes.py     the step functions (Steps 1-6) and the two nodes that run them
-  graph.py     the graph builder: build_rag_graph(), called once at startup (app.py)
-  llm_chat.py  the service the API calls: llm_chat() runs the graph for one question
+  state.py                     RagState: the data passed between the nodes
+  nodes/retrieve.py            the retrieve node and its steps (Steps 1-3)
+  nodes/generate_answer.py     the generate_answer node and its steps (Steps 4-6)
+  prompts/generate_answer_prompt.py
+                               the system prompt, the user prompt templates and the
+                               "Sources:" list format of generate_answer
+  graph/rag_graph.py           the graph builder: build_rag_graph(), called once at
+                               startup (app.py)
+  llm_chat.py                  the service the API calls: llm_chat() runs the graph
+                               for one question
 
 Calls: POST /api/user-support (api/user_support.py) -> llm_chat() -> the RAG graph.
 """
