@@ -66,6 +66,9 @@ def select_chunks(hits):
     for hit in hits:
         payload = hit.payload
         title = " > ".join(payload["breadcrumb"] + payload["headings"])
+        headings = " > ".join(payload["headings"])
+        logger.info("[%d] %s | %s (%s, RRF score %.3f)", len(chunks) + 1,
+                    payload["page_title"], headings, payload["type"], hit.score)
         chunk = {
             "number": len(chunks) + 1,
             "title": title,
@@ -85,11 +88,15 @@ def select_chunks(hits):
 def retrieve(state, openai_client, qdrant_client):
     """Node: Steps 1-3, find the chunks for the question."""
     # Step 1. Embed the question
+    logger.info("Question: %s", state["question"])
+    logger.info("Step 1: embed the question (%s)", config.EMBEDDING_MODEL)
     question_vector = embed_question(state["question"], openai_client)
 
     # Step 2. Hybrid search
+    logger.info("Step 2: hybrid search in %s", config.QDRANT_COLLECTION)
     hits = hybrid_search(state["question"], question_vector, qdrant_client)
 
     # Step 3. Select chunks
+    logger.info("Step 3: select chunks")
     chunks = select_chunks(hits)
     return {"chunks": chunks}

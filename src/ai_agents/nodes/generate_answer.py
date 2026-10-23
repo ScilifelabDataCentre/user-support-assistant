@@ -6,7 +6,9 @@ RagState (state.py) and returns the keys it adds; it also takes the API client i
 needs, which graph/rag_graph.py binds when it adds the node.
 """
 
+import logging
 import re
+import time
 
 import config
 from ai_agents.prompts.generate_answer_prompt import (
@@ -16,6 +18,8 @@ from ai_agents.prompts.generate_answer_prompt import (
     SYSTEM_PROMPT,
     USER_PROMPT_TEMPLATE,
 )
+
+logger = logging.getLogger(__name__)
 
 # Retries of a failed LLM request; the openai client waits between them with
 # exponential backoff (Step 5). Few, because the user is waiting.
@@ -65,13 +69,16 @@ def build_prompt(question, chunks):
 def call_llm(messages, openai_client):
     """Step 5: ask LLM_MODEL for the answer; remove any <think> reasoning from it."""
     client = openai_client.with_options(max_retries=MAX_RETRIES, timeout=LLM_TIMEOUT)
+    start = time.perf_counter()
     response = client.chat.completions.create(
         model=config.LLM_MODEL,
         messages=messages,
         temperature=TEMPERATURE,
     )
+    elapsed = time.perf_counter() - start
     content = response.choices[0].message.content or ""
     answer = THINK_RE.sub("", content).strip()
+    logger.info("LLM answered in %.1fs (%d chars)", elapsed, len(answer))
     return answer
 
 
@@ -98,6 +105,7 @@ def add_sources(answer, chunks):
     append the sources to it as a "Sources:" list; return (answer, sources).
     Nothing cited: no sources, no "Sources:" list."""
     cited = cited_numbers(answer)
+    logger.info("Answer cites chunks %s", sorted(cited))
     answer = remove_citations(answer)
 
     sources = []
@@ -116,8 +124,12 @@ def add_sources(answer, chunks):
             url=chunk["section_url"],
         )
         source_lines.append(source_line)
+        headings = " > ".join(chunk["headings"])
+        logger.info("Source [%d] = chunk [%d]: %s | %s", number, chunk["number"],
+                    chunk["page_title"], headings)
 
     if not sources:
+        logger.warning("Answer cites no chunks: no sources")
         return answer, sources
     answer = answer + "\n\n" + SOURCES_HEADER + "\n" + "\n".join(source_lines)
     return answer, sources
@@ -128,11 +140,14 @@ def add_sources(answer, chunks):
 def generate_answer(state, openai_client):
     """Node: Steps 4-6, answer the question from the chunks, with its sources."""
     # Step 4. Build the prompt
+    logger.info("Step 4: build the prompt (%d chunks)", len(state["chunks"]))
     messages = build_prompt(state["question"], state["chunks"])
 
     # Step 5. Call the LLM
+    logger.info("Step 5: call the LLM (%s)", config.LLM_MODEL)
     answer = call_llm(messages, openai_client)
 
     # Step 6. Add sources
+    logger.info("Step 6: add sources")
     answer, sources = add_sources(answer, state["chunks"])
     return {"answer": answer, "sources": sources}
