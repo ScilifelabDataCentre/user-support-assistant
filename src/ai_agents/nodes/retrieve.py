@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Candidates returned by each of the two searches, before fusion (Step 2)
 PREFETCH_LIMIT = 20
 # Chunks kept after fusion and given to the LLM (Steps 2, 3)
-TOP_K = 5
+TOP_K = 10
 # Retries of a failed embedding request; the openai client waits between them with
 # exponential backoff (Step 1). Few, because the user is waiting.
 MAX_RETRIES = 2

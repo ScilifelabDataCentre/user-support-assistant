@@ -144,6 +144,9 @@ async def generate_answer(state, openai_client, openllm_semaphore):
     # Step 4. Build the prompt
     logger.info("Step 4: build the prompt (%d chunks)", len(state["chunks"]))
     messages = build_prompt(state["question"], state["chunks"])
+    if config.SHOW_PROMPT:
+        for message in messages:
+            logger.info("Prompt (%s):\n%s", message["role"], message["content"])
 
     # Step 5. Call the LLM
     logger.info("Step 5: call the LLM (%s)", config.LLM_MODEL)

@@ -20,6 +20,8 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 # Most requests one process sends to the LLM / embedding API at the same time while
 # answering questions; more wait in the process, so the API is not overloaded
 OPENLLM_MAX_CONCURRENCY = int(os.getenv("OPENLLM_MAX_CONCURRENCY", "20"))
+# Log the full prompt sent to the LLM; set SHOW_PROMPT=true in dev.env for debugging
+SHOW_PROMPT = os.getenv("SHOW_PROMPT", "false").lower() == "true"
 
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL")
