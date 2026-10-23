@@ -10,7 +10,7 @@ import logging
 
 from qdrant_client.models import Document, Fusion, FusionQuery, Prefetch
 
-import config
+from core import config
 from kb_develop.deploy import BM25_MODEL, DENSE_VECTOR, SPARSE_VECTOR
 
 logger = logging.getLogger(__name__)

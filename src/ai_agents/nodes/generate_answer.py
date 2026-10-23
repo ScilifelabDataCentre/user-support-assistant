@@ -11,7 +11,6 @@ import logging
 import re
 import time
 
-import config
 from ai_agents.prompts.generate_answer_prompt import (
     CHUNK_TEMPLATE,
     SOURCE_LINE_TEMPLATE,
@@ -19,6 +18,7 @@ from ai_agents.prompts.generate_answer_prompt import (
     SYSTEM_PROMPT,
     USER_PROMPT_TEMPLATE,
 )
+from core import config
 
 logger = logging.getLogger(__name__)
 

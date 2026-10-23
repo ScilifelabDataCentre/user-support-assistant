@@ -15,8 +15,8 @@ from fastapi import FastAPI
 
 from ai_agents.graph.rag_graph import build_rag_graph
 from api import health, ingestion, user_support
-from clients import openai_client, qdrant_client
-from logging_setup import new_request_id, request_id_var, setup_logging
+from core.clients import openai_client, qdrant_client
+from core.logging_setup import new_request_id, request_id_var, setup_logging
 
 setup_logging()
 
@@ -47,7 +47,7 @@ app = FastAPI(title="User Support Assistant", lifespan=lifespan, openapi_tags=ta
 
 @app.middleware("http")
 async def add_request_id(request, call_next):
-    """Give each request an id: every log line it writes shows it (see logging_setup.py),
+    """Give each request an id: every log line it writes shows it (see core/logging_setup.py),
     and the response returns it in the X-Request-ID header, so a user's report can be
     matched to its log lines."""
     request_id = new_request_id()

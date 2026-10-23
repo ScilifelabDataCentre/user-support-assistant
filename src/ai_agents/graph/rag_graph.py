@@ -1,7 +1,7 @@
 """Graph builder of the RAG graph: adds the nodes (nodes/), connects them and compiles.
 
 build_rag_graph() is called once, at startup (see app.py), with the shared async API
-clients (clients.py); llm_chat.py runs the compiled graph for each question with
+clients (core/clients.py); llm_chat.py runs the compiled graph for each question with
 ainvoke().
 """
 
@@ -10,10 +10,10 @@ from functools import partial
 
 from langgraph.graph import END, START, StateGraph
 
-import config
 from ai_agents.nodes.generate_answer import generate_answer
 from ai_agents.nodes.retrieve import retrieve
 from ai_agents.state import RagState
+from core import config
 
 
 def build_rag_graph(openai_client, qdrant_client):

@@ -8,8 +8,8 @@ A request that fails with a temporary error (connection, timeout, rate limit, 5x
 retried up to MAX_RETRIES times with exponential backoff; other errors (e.g. a wrong
 API key) are raised at once.
 
-The async API client (AsyncOpenAI) is created by the caller (clients.openai_client())
-and passed in; the model name comes from config.py. The requests and the waits
+The async API client (AsyncOpenAI) is created by the caller (core.clients.openai_client())
+and passed in; the model name comes from core/config.py. The requests and the waits
 between retries are awaited, so the event loop serves other requests meanwhile.
 """
 
@@ -19,7 +19,7 @@ import random
 
 import openai
 
-import config
+from core import config
 
 logger = logging.getLogger(__name__)
 

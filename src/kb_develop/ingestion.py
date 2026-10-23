@@ -52,7 +52,7 @@ def save(chunks, output_root=OUTPUT_ROOT):
 
 
 async def run_ingestion(openai_client, qdrant_client):
-    """Run Steps 1-5 with the given async clients (see clients.py) and return the path
+    """Run Steps 1-5 with the given async clients (see core/clients.py) and return the path
     of the saved embeddings.jsonl."""
     # Step 1. Crawl
     logger.info("Step 1: crawl")

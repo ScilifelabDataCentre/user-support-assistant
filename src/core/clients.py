@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 
-import config
+from core import config
 
 # Hosts that mean "this machine"; traffic to them never leaves the computer.
 LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")

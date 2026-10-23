@@ -15,7 +15,7 @@ Deploy steps (each function below says which step it implements):
   Step 2. Build points: one Qdrant point per chunk. The point id is the chunk id; the
           dense vector is the chunk's embedding; the sparse vector is the chunk's
           "text" as a BM25_MODEL document, which Qdrant turns into BM25 weights on the
-          server (needs Qdrant >= 1.15.2 and clients.qdrant_client(), which sends
+          server (needs Qdrant >= 1.15.2 and core.clients.qdrant_client(), which sends
           documents to the server). All other chunk fields (text, content, headings,
           breadcrumb, URLs, ...) are stored as the point's payload (metadata).
   Step 3. Upload the points in batches of BATCH_SIZE, one awaited upsert per batch; a
@@ -25,7 +25,7 @@ Deploy steps (each function below says which step it implements):
   Step 4. Check: count the points in the collection; it must equal the number of chunks.
 
 The async Qdrant client (AsyncQdrantClient) is created by the caller
-(clients.qdrant_client()) and passed in; the collection name comes from config.py.
+(core.clients.qdrant_client()) and passed in; the collection name comes from core/config.py.
 """
 
 import asyncio
@@ -40,7 +40,7 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-import config
+from core import config
 
 logger = logging.getLogger(__name__)
 
