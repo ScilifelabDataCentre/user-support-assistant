@@ -7,7 +7,8 @@ response (no streaming):
   - sources: the metadata of those sections, each with its "number" in that list.
 
 The answer comes from the LLM chat service (ai_agents/llm_chat.py), which runs the
-RAG graph built once at startup (see app.py).
+RAG graph built once at startup (see app.py). The endpoint is async, so one process
+serves many questions at once: nothing it calls may block (no sync network calls).
 """
 
 from fastapi import APIRouter, Request
@@ -43,8 +44,8 @@ class UserSupportResponse(BaseModel):
 
 
 @router.post("", response_model=UserSupportResponse)
-def user_support_suggestion(body: UserSupportRequest, request: Request):
+async def user_support_suggestion(body: UserSupportRequest, request: Request):
     """Answer the user's question with the RAG-generated response and its sources."""
     rag_graph = request.app.state.rag_graph
-    answer, sources = llm_chat(rag_graph, body.question)
+    answer, sources = await llm_chat(rag_graph, body.question)
     return UserSupportResponse(answer=answer, sources=sources)

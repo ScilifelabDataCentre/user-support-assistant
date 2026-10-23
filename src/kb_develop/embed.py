@@ -8,13 +8,14 @@ A request that fails with a temporary error (connection, timeout, rate limit, 5x
 retried up to MAX_RETRIES times with exponential backoff; other errors (e.g. a wrong
 API key) are raised at once.
 
-The API client is created by the caller (clients.openai_client()) and passed in;
-the model name comes from config.py.
+The async API client (AsyncOpenAI) is created by the caller (clients.openai_client())
+and passed in; the model name comes from config.py. The requests and the waits
+between retries are awaited, so the event loop serves other requests meanwhile.
 """
 
+import asyncio
 import logging
 import random
-import time
 
 import openai
 
@@ -34,13 +35,13 @@ MAX_DELAY = 60.0
 RETRYABLE_ERRORS = (openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError)
 
 
-def request_with_retry(client, batch):
+async def request_with_retry(client, batch):
     """Send one embeddings request for a batch of texts, retried with exponential
     backoff on temporary errors. The wait is BASE_DELAY * 2^attempt plus up to 1 s of
     random jitter, at most MAX_DELAY; after MAX_RETRIES failed retries the error is raised."""
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return client.embeddings.create(model=config.EMBEDDING_MODEL, input=batch)
+            return await client.embeddings.create(model=config.EMBEDDING_MODEL, input=batch)
         except RETRYABLE_ERRORS as e:
             if attempt == MAX_RETRIES:
                 raise
@@ -48,16 +49,16 @@ def request_with_retry(client, batch):
             delay = min(delay, MAX_DELAY)
             logger.warning("Embedding request failed (%s), retry %d/%d in %.1fs",
                            type(e).__name__, attempt + 1, MAX_RETRIES, delay)
-            time.sleep(delay)
+            await asyncio.sleep(delay)
 
 
-def embed_texts(client, texts):
+async def embed_texts(client, texts):
     """Return one vector per text, in the same order as texts."""
     config.require("EMBEDDING_MODEL")
     vectors = []
     for start in range(0, len(texts), BATCH_SIZE):
         batch = texts[start:start + BATCH_SIZE]
-        response = request_with_retry(client, batch)
+        response = await request_with_retry(client, batch)
 
         # Sort the results by index, so each vector matches its input text.
         results = sorted(response.data, key=lambda result: result.index)
@@ -67,13 +68,13 @@ def embed_texts(client, texts):
     return vectors
 
 
-def embed_chunks(client, chunks):
+async def embed_chunks(client, chunks):
     """Return a copy of every chunk with its vector added as "vector"."""
     texts = []
     for chunk in chunks:
         texts.append(chunk["text"])
 
-    vectors = embed_texts(client, texts)
+    vectors = await embed_texts(client, texts)
 
     embedded_chunks = []
     for chunk, vector in zip(chunks, vectors):

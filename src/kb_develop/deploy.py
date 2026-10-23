@@ -18,14 +18,17 @@ Deploy steps (each function below says which step it implements):
           server (needs Qdrant >= 1.15.2 and clients.qdrant_client(), which sends
           documents to the server). All other chunk fields (text, content, headings,
           breadcrumb, URLs, ...) are stored as the point's payload (metadata).
-  Step 3. Upload the points in batches of BATCH_SIZE; a failed batch is retried up to
-          MAX_RETRIES times.
+  Step 3. Upload the points in batches of BATCH_SIZE, one awaited upsert per batch; a
+          failed batch is retried up to MAX_RETRIES times with exponential backoff.
+          Not the client's upload_points(): on AsyncQdrantClient it is not async but
+          sends sync requests, which would block the event loop.
   Step 4. Check: count the points in the collection; it must equal the number of chunks.
 
-The Qdrant client is created by the caller (clients.qdrant_client()) and passed in;
-the collection name comes from config.py.
+The async Qdrant client (AsyncQdrantClient) is created by the caller
+(clients.qdrant_client()) and passed in; the collection name comes from config.py.
 """
 
+import asyncio
 import logging
 
 from qdrant_client.models import (
@@ -51,20 +54,22 @@ BM25_MODEL = "Qdrant/bm25"
 BATCH_SIZE = 64
 # Retries for a failed upload batch (Step 3)
 MAX_RETRIES = 3
+# Seconds before the first retry of a batch; doubled for each next retry (Step 3)
+BASE_DELAY = 1.0
 
 
 # ------------------------- Step 1: recreate collection -----------------------
 
-def recreate_collection(client, collection, vector_size):
+async def recreate_collection(client, collection, vector_size):
     """Step 1: delete the collection if it exists, then create it empty, with a dense
     and a sparse (BM25) vector per point."""
-    if client.collection_exists(collection):
+    if await client.collection_exists(collection):
         logger.info("Deleting existing collection %s", collection)
-        client.delete_collection(collection)
+        await client.delete_collection(collection)
 
     logger.info("Creating collection %s (dense vector size %d, cosine distance; sparse BM25 vector)",
                 collection, vector_size)
-    client.create_collection(
+    await client.create_collection(
         collection_name=collection,
         vectors_config={DENSE_VECTOR: VectorParams(size=vector_size, distance=Distance.COSINE)},
         sparse_vectors_config={SPARSE_VECTOR: SparseVectorParams(modifier=Modifier.IDF)},
@@ -89,23 +94,36 @@ def build_points(chunks):
 
 # ------------------------------- Step 3: upload ------------------------------
 
-def upload(client, collection, points):
-    """Step 3: upload the points in batches of BATCH_SIZE and wait until Qdrant has
-    stored them (failed batches are retried up to MAX_RETRIES times)."""
-    client.upload_points(
-        collection_name=collection,
-        points=points,
-        batch_size=BATCH_SIZE,
-        max_retries=MAX_RETRIES,
-        wait=True,
-    )
+async def upsert_with_retry(client, collection, batch):
+    """Step 3: upsert one batch of points and wait until Qdrant has stored them; on an
+    error, retry up to MAX_RETRIES times, waiting BASE_DELAY * 2^attempt seconds."""
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            await client.upsert(collection_name=collection, points=batch, wait=True)
+            return
+        except Exception as e:
+            if attempt == MAX_RETRIES:
+                raise
+            delay = BASE_DELAY * 2 ** attempt
+            logger.warning("Upload of a batch failed (%s), retry %d/%d in %.1fs",
+                           type(e).__name__, attempt + 1, MAX_RETRIES, delay)
+            await asyncio.sleep(delay)
+
+
+async def upload(client, collection, points):
+    """Step 3: upload the points in batches of BATCH_SIZE (failed batches are retried
+    up to MAX_RETRIES times)."""
+    for start in range(0, len(points), BATCH_SIZE):
+        batch = points[start:start + BATCH_SIZE]
+        await upsert_with_retry(client, collection, batch)
+        logger.info("Uploaded %d/%d", start + len(batch), len(points))
 
 
 # ------------------------------- Step 4: check -------------------------------
 
-def check_count(client, collection, expected):
+async def check_count(client, collection, expected):
     """Step 4: raise if the collection does not hold exactly `expected` points."""
-    count = client.count(collection_name=collection, exact=True).count
+    count = (await client.count(collection_name=collection, exact=True)).count
     if count != expected:
         raise RuntimeError(f"collection {collection} has {count} points, expected {expected}")
     return count
@@ -113,7 +131,7 @@ def check_count(client, collection, expected):
 
 # --------------------------------- pipeline ----------------------------------
 
-def deploy_chunks(client, chunks):
+async def deploy_chunks(client, chunks):
     """Run Steps 1-4: put the embedded chunks into the Qdrant collection
     QDRANT_COLLECTION, replacing what was there."""
     if not chunks:
@@ -122,15 +140,15 @@ def deploy_chunks(client, chunks):
 
     # Step 1. Recreate the collection
     vector_size = len(chunks[0]["vector"])
-    recreate_collection(client, collection, vector_size)
+    await recreate_collection(client, collection, vector_size)
 
     # Step 2. Build points
     points = build_points(chunks)
 
     # Step 3. Upload
     logger.info("Uploading %d points to %s", len(points), collection)
-    upload(client, collection, points)
+    await upload(client, collection, points)
 
     # Step 4. Check
-    count = check_count(client, collection, len(points))
+    count = await check_count(client, collection, len(points))
     logger.info("Collection %s now holds %d points", collection, count)

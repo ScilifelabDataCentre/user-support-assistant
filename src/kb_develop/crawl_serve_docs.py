@@ -14,14 +14,18 @@ Crawling steps (each function below says which step it implements):
           ["User accounts", "Users with privileged rights"].
 
 crawl() runs Steps 1-4 and returns [{"url", "breadcrumb", "markdown"}], one per page.
+
+Async: the downloads and the waits between them are awaited (httpx.AsyncClient), so
+the event loop serves other requests meanwhile; the HTML parsing (BeautifulSoup) runs
+in a worker thread (asyncio.to_thread), so it does not stop them either.
 """
 
+import asyncio
 import logging
 import re
-import time
 from urllib.parse import urljoin, urlparse, urldefrag
 
-import requests
+import httpx
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -30,6 +34,8 @@ BASE = "https://serve.scilifelab.se"
 DIR_URL = f"{BASE}/docs/_dir/"
 # Seconds to wait between requests (Step 2)
 DELAY = 1
+# Seconds before a request is given up (Steps 1, 2)
+TIMEOUT = 30
 
 # Fenced code blocks and inline code spans; links inside them are not fixed (Step 3)
 CODE_RE = re.compile(r"(^(?:```|~~~).*?^(?:```|~~~)[^\n]*$|`[^`\n]+`)", re.S | re.M)
@@ -45,9 +51,14 @@ SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 # ---------------------------- Step 1: list pages -----------------------------
 
-def get_page_urls(session):
+async def get_page_urls(http_client):
     """Step 1: return the URL of every docs page listed on the directory page."""
-    html = session.get(DIR_URL, timeout=30).text
+    response = await http_client.get(DIR_URL)
+    return await asyncio.to_thread(parse_page_urls, response.text)
+
+
+def parse_page_urls(html):
+    """Step 1: the URLs of the docs pages linked from the directory page's HTML."""
     soup = BeautifulSoup(html, "html.parser")
     urls = []
     for a in soup.find_all("a", href=True):
@@ -68,11 +79,17 @@ def get_page_urls(session):
 
 # ------------------------------- Step 2: fetch -------------------------------
 
-def fetch_markdown(session, page_url):
+async def fetch_markdown(http_client, page_url):
     """Step 2: download one page's markdown source and title; return (title, markdown)."""
-    r = session.get(page_url + "_source/", timeout=30)
-    r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
+    response = await http_client.get(page_url + "_source/")
+    response.raise_for_status()
+    return await asyncio.to_thread(parse_source, response.text)
+
+
+def parse_source(html):
+    """Step 2: the title and the markdown source in the HTML of a page's _source/ view;
+    return (title, markdown)."""
+    soup = BeautifulSoup(html, "html.parser")
     # The source is shown in <pre><code> (older versions used a <textarea>).
     node = soup.select_one("pre.highlight code") or soup.select_one("pre code") or soup.find("textarea")
     if node is None:
@@ -155,36 +172,36 @@ def breadcrumb(page_url, titles):
 
 # --------------------------------- pipeline ----------------------------------
 
-def crawl():
+async def crawl():
     """Run Steps 1-4 and return [{"url", "breadcrumb", "markdown"}], one per page."""
-    session = requests.Session()
+    # Follows redirects like a browser; one client for all requests of this crawl.
+    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as http_client:
+        # Step 1. List pages
+        urls = await get_page_urls(http_client)
+        logger.info("Found %d pages", len(urls))
 
-    # Step 1. List pages
-    urls = get_page_urls(session)
-    logger.info("Found %d pages", len(urls))
+        # page URL -> title, used in Step 4
+        titles = {}
+        # (url, markdown) of every fetched page
+        fetched = []
+        failed = []
+        for i, url in enumerate(urls, 1):
+            await asyncio.sleep(DELAY)
 
-    # page URL -> title, used in Step 4
-    titles = {}
-    # (url, markdown) of every fetched page
-    fetched = []
-    failed = []
-    for i, url in enumerate(urls, 1):
-        time.sleep(DELAY)
+            # Step 2. Fetch
+            try:
+                title, markdown = await fetch_markdown(http_client, url)
+            except Exception as e:
+                logger.warning("[%d/%d] failed to fetch %s: %s", i, len(urls), url, e)
+                failed.append(url)
+                continue
 
-        # Step 2. Fetch
-        try:
-            title, markdown = fetch_markdown(session, url)
-        except Exception as e:
-            logger.warning("[%d/%d] failed to fetch %s: %s", i, len(urls), url, e)
-            failed.append(url)
-            continue
+            # Step 3. Fix links
+            markdown = fix_links(markdown, url)
 
-        # Step 3. Fix links
-        markdown = fix_links(markdown, url)
-
-        titles[url] = title
-        fetched.append((url, markdown))
-        logger.info("[%d/%d] fetched %s", i, len(urls), url)
+            titles[url] = title
+            fetched.append((url, markdown))
+            logger.info("[%d/%d] fetched %s", i, len(urls), url)
 
     logger.info("Crawl done: %d fetched, %d failed", len(fetched), len(failed))
     for url in failed:

@@ -17,6 +17,9 @@ OPENLLM_API_KEY = os.getenv("OPENLLM_API_KEY")
 OPENLLM_BASE_URL = os.getenv("OPENLLM_BASE_URL")
 LLM_MODEL = os.getenv("LLM_MODEL")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+# Most requests one process sends to the LLM / embedding API at the same time while
+# answering questions; more wait in the process, so the API is not overloaded
+OPENLLM_MAX_CONCURRENCY = int(os.getenv("OPENLLM_MAX_CONCURRENCY", "20"))
 
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL")

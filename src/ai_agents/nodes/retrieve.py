@@ -1,8 +1,9 @@
 """retrieve node of the RAG graph: Steps 1-3 (see the steps in ai_agents/__init__.py).
 
 One function per step, then the node that runs them in order. The node takes the
-RagState (state.py) and returns the keys it adds; it also takes the API clients it
-needs, which graph/rag_graph.py binds when it adds the node.
+RagState (state.py) and returns the keys it adds; it also takes the async API clients
+and the semaphore it needs, which graph/rag_graph.py binds when it adds the node.
+Steps 1 and 2 are async (they wait on the network); Step 3 only computes.
 """
 
 import logging
@@ -25,16 +26,17 @@ MAX_RETRIES = 2
 
 # ------------------------- Step 1: embed the question ------------------------
 
-def embed_question(question, openai_client):
+async def embed_question(question, openai_client, openllm_semaphore):
     """Step 1: embed the question with EMBEDDING_MODEL; return its dense vector."""
     client = openai_client.with_options(max_retries=MAX_RETRIES)
-    response = client.embeddings.create(model=config.EMBEDDING_MODEL, input=[question])
+    async with openllm_semaphore:
+        response = await client.embeddings.create(model=config.EMBEDDING_MODEL, input=[question])
     return response.data[0].embedding
 
 
 # ---------------------------- Step 2: hybrid search --------------------------
 
-def hybrid_search(question, question_vector, qdrant_client):
+async def hybrid_search(question, question_vector, qdrant_client):
     """Step 2: dense + sparse (BM25) search in one Qdrant query, fused with RRF;
     return the found points (Qdrant ScoredPoint, best first)."""
     dense_search = Prefetch(
@@ -47,7 +49,7 @@ def hybrid_search(question, question_vector, qdrant_client):
         using=SPARSE_VECTOR,
         limit=PREFETCH_LIMIT,
     )
-    response = qdrant_client.query_points(
+    response = await qdrant_client.query_points(
         collection_name=config.QDRANT_COLLECTION,
         prefetch=[dense_search, sparse_search],
         query=FusionQuery(fusion=Fusion.RRF),
@@ -85,16 +87,16 @@ def select_chunks(hits):
 
 # ------------------------------------ Node -----------------------------------
 
-def retrieve(state, openai_client, qdrant_client):
+async def retrieve(state, openai_client, qdrant_client, openllm_semaphore):
     """Node: Steps 1-3, find the chunks for the question."""
     # Step 1. Embed the question
     logger.info("Question: %s", state["question"])
     logger.info("Step 1: embed the question (%s)", config.EMBEDDING_MODEL)
-    question_vector = embed_question(state["question"], openai_client)
+    question_vector = await embed_question(state["question"], openai_client, openllm_semaphore)
 
     # Step 2. Hybrid search
     logger.info("Step 2: hybrid search in %s", config.QDRANT_COLLECTION)
-    hits = hybrid_search(state["question"], question_vector, qdrant_client)
+    hits = await hybrid_search(state["question"], question_vector, qdrant_client)
 
     # Step 3. Select chunks
     logger.info("Step 3: select chunks")

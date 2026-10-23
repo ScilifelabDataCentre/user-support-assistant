@@ -28,6 +28,13 @@ Graph:
 
   START -> retrieve (Steps 1-3) -> generate_answer (Steps 4-6) -> END
 
+Async: the whole path is async (endpoint -> llm_chat() -> ainvoke() -> nodes ->
+AsyncOpenAI / AsyncQdrantClient), so while one question waits on the network the
+process serves others. Nothing on this path may block: a sync network call would
+stop every request in the process (the knowledge base ingestion runs in the same
+process with the same clients, see kb_develop/ingestion.py). At most OPENLLM_MAX_CONCURRENCY requests go to
+the LLM / embedding API at the same time (Steps 1 and 5); more wait their turn.
+
 Files:
 
   state.py                     RagState: the data passed between the nodes

@@ -1,6 +1,30 @@
-"""Logging setup for the whole application, called once at startup (see app.py)."""
+"""Logging setup for the whole application, called once at startup (see app.py).
+
+Every log line shows the id of the HTTP request it belongs to, e.g. [3f9a1c2e], so
+the lines of requests served at the same time can be told apart; "-" outside a
+request (startup, shutdown). app.py sets the id for each request (request_id_var).
+"""
 
 import logging
+import uuid
+from contextvars import ContextVar
+
+# Id of the HTTP request being served. A ContextVar, so each request (and every task
+# it starts, e.g. the RAG graph's nodes) sees its own id, also when many run at once.
+request_id_var = ContextVar("request_id", default="-")
+
+
+def new_request_id():
+    """A short random id for one request, e.g. "3f9a1c2e"."""
+    return uuid.uuid4().hex[:8]
+
+
+class RequestIdFilter(logging.Filter):
+    """Adds the current request's id to every log record, as record.request_id."""
+
+    def filter(self, record):
+        record.request_id = request_id_var.get()
+        return True
 
 
 class ColorFormatter(logging.Formatter):
@@ -25,12 +49,14 @@ class ColorFormatter(logging.Formatter):
 
 
 def setup_logging():
-    """Log INFO and above to the console, with time, level and module name.
+    """Log INFO and above to the console, with time, level, request id and module name.
     The level name is colored when the output is a terminal (not a file or a pipe)."""
-    log_format = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+    log_format = "%(asctime)s %(levelname)-7s [%(request_id)s] %(name)s: %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
 
     handler = logging.StreamHandler()
+    # On the handler, not a logger, so records from every logger get the id.
+    handler.addFilter(RequestIdFilter())
     if handler.stream.isatty():
         handler.setFormatter(ColorFormatter(log_format, date_format))
     else:

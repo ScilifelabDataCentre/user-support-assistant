@@ -2,8 +2,9 @@
 ai_agents/__init__.py).
 
 One function per step, then the node that runs them in order. The node takes the
-RagState (state.py) and returns the keys it adds; it also takes the API client it
-needs, which graph/rag_graph.py binds when it adds the node.
+RagState (state.py) and returns the keys it adds; it also takes the async API client
+and the semaphore it needs, which graph/rag_graph.py binds when it adds the node.
+Step 5 is async (it waits on the network); Steps 4 and 6 only compute.
 """
 
 import logging
@@ -66,16 +67,17 @@ def build_prompt(question, chunks):
 
 # ----------------------------- Step 5: call the LLM --------------------------
 
-def call_llm(messages, openai_client):
+async def call_llm(messages, openai_client, openllm_semaphore):
     """Step 5: ask LLM_MODEL for the answer; remove any <think> reasoning from it."""
     client = openai_client.with_options(max_retries=MAX_RETRIES, timeout=LLM_TIMEOUT)
-    start = time.perf_counter()
-    response = client.chat.completions.create(
-        model=config.LLM_MODEL,
-        messages=messages,
-        temperature=TEMPERATURE,
-    )
-    elapsed = time.perf_counter() - start
+    async with openllm_semaphore:
+        start = time.perf_counter()
+        response = await client.chat.completions.create(
+            model=config.LLM_MODEL,
+            messages=messages,
+            temperature=TEMPERATURE,
+        )
+        elapsed = time.perf_counter() - start
     content = response.choices[0].message.content or ""
     answer = THINK_RE.sub("", content).strip()
     logger.info("LLM answered in %.1fs (%d chars)", elapsed, len(answer))
@@ -137,7 +139,7 @@ def add_sources(answer, chunks):
 
 # ------------------------------------ Node -----------------------------------
 
-def generate_answer(state, openai_client):
+async def generate_answer(state, openai_client, openllm_semaphore):
     """Node: Steps 4-6, answer the question from the chunks, with its sources."""
     # Step 4. Build the prompt
     logger.info("Step 4: build the prompt (%d chunks)", len(state["chunks"]))
@@ -145,7 +147,7 @@ def generate_answer(state, openai_client):
 
     # Step 5. Call the LLM
     logger.info("Step 5: call the LLM (%s)", config.LLM_MODEL)
-    answer = call_llm(messages, openai_client)
+    answer = await call_llm(messages, openai_client, openllm_semaphore)
 
     # Step 6. Add sources
     logger.info("Step 6: add sources")
