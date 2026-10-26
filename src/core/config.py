@@ -34,6 +34,8 @@ HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
 # Restart the server when code changes; set RELOAD=true in dev.env for development
 RELOAD = os.getenv("RELOAD", "false").lower() == "true"
+# Serve the Gradio demo page at /demo (see src/demo/gradio_app.py); set ENABLE_DEMO=false to turn it off
+ENABLE_DEMO = os.getenv("ENABLE_DEMO", "true").lower() == "true"
 
 
 def require(*names):
