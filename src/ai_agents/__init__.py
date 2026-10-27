@@ -1,8 +1,12 @@
 """RAG graph for the user support API: answer a user's question from the knowledge base.
 
-RAG steps, run by two LangGraph nodes: retrieve (Steps 1-3) and generate_answer
-(Steps 4-6). Each node is one file in nodes/, with one function per step.
+RAG steps, run by three LangGraph nodes: guard (Step 0), retrieve (Steps 1-3) and
+generate_answer (Steps 4-6). Each node is one file in nodes/, with one function per step.
 
+  Step 0. Guard: check the question against rules for the most obvious prompt
+          injection attacks (override the rules, extract the system prompt, change
+          the assistant's role, chat template tokens). On a match the graph ends
+          with a fixed refusal, before any API call.
   Step 1. Embed the question: turn the question into a dense vector with
           EMBEDDING_MODEL, the same model the chunks were embedded with
           (see kb_develop/embed.py).
@@ -26,7 +30,9 @@ RAG steps, run by two LangGraph nodes: retrieve (Steps 1-3) and generate_answer
 
 Graph:
 
-  START -> retrieve (Steps 1-3) -> generate_answer (Steps 4-6) -> END
+  START -> guard (Step 0) -> retrieve (Steps 1-3) -> generate_answer (Steps 4-6) -> END
+                  |
+                  +-> END (question blocked: the answer is the refusal)
 
 Async: the whole path is async (endpoint -> llm_chat() -> ainvoke() -> nodes ->
 AsyncOpenAI / AsyncQdrantClient), so while one question waits on the network the
@@ -38,6 +44,7 @@ the LLM / embedding API at the same time (Steps 1 and 5); more wait their turn.
 Files:
 
   state.py                     RagState: the data passed between the nodes
+  nodes/guard.py               the guard node and its rules (Step 0)
   nodes/retrieve.py            the retrieve node and its steps (Steps 1-3)
   nodes/generate_answer.py     the generate_answer node and its steps (Steps 4-6)
   prompts/generate_answer_prompt.py

@@ -8,6 +8,9 @@ class RagState(TypedDict, total=False):
 
     # Input: the user's question
     question: str
+    # guard (Step 0): True if the question matched a prompt injection rule; the graph
+    # then ends, with the refusal as "answer" and no "sources"
+    blocked: bool
     # retrieve (Steps 1-3): the selected chunks: {"number", "title", "page_title",
     # "headings", "section_url", "source_url", "type", "text"}
     chunks: list
