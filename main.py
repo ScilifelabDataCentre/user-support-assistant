@@ -20,4 +20,5 @@ sys.path.insert(0, str(SRC_DIR))
 from core import config  # noqa: E402  (needs src/ on the path first)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", app_dir=str(SRC_DIR), host=config.HOST, port=config.PORT, reload=config.RELOAD)
+    config.require("HOST", "PORT")
+    uvicorn.run("app:app", app_dir=str(SRC_DIR), host=config.HOST, port=int(config.PORT), reload=config.RELOAD)

@@ -29,9 +29,16 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 # Collection that holds the knowledge base chunks
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
+# Postgres (chat history)
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+
 # Web server (used by main.py at the repo root)
-HOST = os.getenv("HOST", "127.0.0.1")
-PORT = int(os.getenv("PORT", "8000"))
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
 # Restart the server when code changes; set RELOAD=true in dev.env for development
 RELOAD = os.getenv("RELOAD", "false").lower() == "true"
 # Serve the Gradio demo page at /demo (see src/demo/gradio_app.py); set ENABLE_DEMO=false to turn it off
