@@ -8,6 +8,24 @@ This repository provides example configurations for a set of different tools. Wh
 
 The end goal is for this repository to be populated with examples implementing guidelines detailed in the [SciLifeLab Data Centre's development guidelines repository](https://github.com/ScilifelabDataCentre/development-guidelines).
 
+## Running locally
+
+Settings and secrets are read from `dev.env` at the repo root (git-ignored). Run all commands from the repo root.
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Start the databases (Qdrant and Postgres) in the background
+docker compose --env-file dev.env up -d
+
+# Start the API server, then open http://127.0.0.1:8000/docs
+python main.py
+
+# Stop the databases when done (containers and data are kept)
+docker compose --env-file dev.env stop
+```
+
 ## Repository structure
 
 ```text
