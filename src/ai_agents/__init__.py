@@ -55,5 +55,6 @@ Files:
   llm_chat.py                  the service the API calls: llm_chat() runs the graph
                                for one question
 
-Calls: POST /api/user-support (api/user_support.py) -> llm_chat() -> the RAG graph.
+Calls: POST /api/user-support (api/user_support.py) -> llm_chat() -> the RAG graph;
+llm_chat() then saves the request and the graph's result in Postgres (db/support_requests.py).
 """

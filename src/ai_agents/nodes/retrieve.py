@@ -80,6 +80,7 @@ def select_chunks(hits):
             "source_url": payload["source_url"],
             "type": payload["type"],
             "text": payload["content"],
+            "score": hit.score,
         }
         chunks.append(chunk)
     return chunks

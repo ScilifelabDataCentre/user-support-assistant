@@ -18,8 +18,9 @@ from fastapi import FastAPI
 from ai_agents.graph.rag_graph import build_rag_graph
 from api import health, ingestion, user_support
 from core import config
-from core.clients import openai_client, qdrant_client
+from core.clients import openai_client, postgres_pool, qdrant_client
 from core.logging_setup import new_request_id, request_id_var, setup_logging
+from db.support_requests import create_table
 
 setup_logging()
 
@@ -33,9 +34,16 @@ async def lifespan(app):
     app.state.qdrant_client = qdrant_client()
     # The RAG graph behind POST /api/user-support, built once with the shared clients.
     app.state.rag_graph = build_rag_graph(app.state.openai_client, app.state.qdrant_client)
+    # Postgres connection pool, used to save every question and its answer (see db/).
+    app.state.postgres_pool = postgres_pool()
+    # Open the pool; startup fails if the database is not reachable within 10 s.
+    await app.state.postgres_pool.open(wait=True, timeout=10)
+    # Create the tables if they do not exist yet; existing data is kept.
+    await create_table(app.state.postgres_pool)
     yield
     await app.state.openai_client.close()
     await app.state.qdrant_client.close()
+    await app.state.postgres_pool.close()
 
 
 # The sections of the API docs page, in the order they are shown.

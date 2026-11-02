@@ -12,7 +12,7 @@ class RagState(TypedDict, total=False):
     # then ends, with the refusal as "answer" and no "sources"
     blocked: bool
     # retrieve (Steps 1-3): the selected chunks: {"number", "title", "page_title",
-    # "headings", "section_url", "source_url", "type", "text"}
+    # "headings", "section_url", "source_url", "type", "text", "score" (RRF)}
     chunks: list
     # generate_answer (Steps 4-6): the LLM's answer followed by its "Sources:" list
     answer: str
