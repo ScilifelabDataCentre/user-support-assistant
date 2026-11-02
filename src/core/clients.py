@@ -9,18 +9,26 @@ the RAG graph behind POST /api/user-support, which serves many questions at once
 ai_agents/__init__.py), and the knowledge base ingestion (see kb_develop/ingestion.py).
 Their calls must be awaited, and no sync client may be used next to them: a sync
 network call would block every request in the process.
+
+The Postgres connection pool (postgres_pool) is async too; db/ uses it to save each
+question to POST /api/user-support.
 """
 
 import warnings
 from urllib.parse import urlparse
 
 from openai import AsyncOpenAI
+from psycopg_pool import AsyncConnectionPool
 from qdrant_client import AsyncQdrantClient
 
 from core import config
 
 # Hosts that mean "this machine"; traffic to them never leaves the computer.
 LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+# Most Postgres connections one process keeps open; more requests wait for a free one.
+POSTGRES_POOL_MAX_SIZE = 10
+# Seconds before a Postgres connection attempt is given up
+POSTGRES_CONNECT_TIMEOUT = 10
 
 
 def openai_client():
@@ -50,3 +58,22 @@ def qdrant_client():
             warnings.filterwarnings("ignore", message="Api key is used with an insecure connection")
             return AsyncQdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, cloud_inference=True)
     return AsyncQdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, cloud_inference=True)
+
+
+def postgres_pool():
+    """Async connection pool for the Postgres database at POSTGRES_HOST:POSTGRES_PORT,
+    where db/ saves the requests. Connections are reused instead of opened per request
+    (opening one takes ~20 ms: TCP + password check).
+    It is created closed: app.py opens it in its lifespan, on the running event loop.
+    psycopg's async connections do not work with Windows' ProactorEventLoop; main.py
+    makes uvicorn use the SelectorEventLoop there."""
+    config.require("POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB")
+    connection_settings = {
+        "host": config.POSTGRES_HOST,
+        "port": config.POSTGRES_PORT,
+        "user": config.POSTGRES_USER,
+        "password": config.POSTGRES_PASSWORD,
+        "dbname": config.POSTGRES_DB,
+        "connect_timeout": POSTGRES_CONNECT_TIMEOUT,
+    }
+    return AsyncConnectionPool(kwargs=connection_settings, max_size=POSTGRES_POOL_MAX_SIZE, open=False)

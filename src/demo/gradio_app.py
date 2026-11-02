@@ -33,7 +33,9 @@ def build_demo(app):
         # Single-turn: Gradio passes the earlier turns in history, but they are not used;
         # only this message goes to the RAG graph (see the module docstring).
         rag_graph = app.state.rag_graph
-        answer_text, _sources = await llm_chat(rag_graph, message)
+        # Saved in Postgres like the API's questions, without a ticket ID
+        postgres_pool = app.state.postgres_pool
+        answer_text, _sources = await llm_chat(rag_graph, message, postgres_pool)
         return answer_text
 
     demo = gr.ChatInterface(

@@ -1,6 +1,7 @@
 """User support API: the main API the front end talks to.
 
-POST /api/user-support takes the user's question as a string and returns one JSON
+POST /api/user-support takes the user's question as a string (and optionally the
+ticket ID from the ticketing system) and returns one JSON
 response (no streaming):
   - answer: the full RAG-generated answer, followed by a "Sources:" list of the
     documentation sections it uses, numbered 1..n, with their links;
@@ -23,6 +24,7 @@ class UserSupportRequest(BaseModel):
     """Request body of POST /api/user-support."""
 
     question: str = Field(min_length=1, description="The user's question.")
+    ticket_id: str | None = Field(default=None, description="Ticket ID from the ticketing system, if any.")
 
 
 class Source(BaseModel):
@@ -45,7 +47,9 @@ class UserSupportResponse(BaseModel):
 
 @router.post("", response_model=UserSupportResponse)
 async def user_support_suggestion(body: UserSupportRequest, request: Request):
-    """Answer the user's question with the RAG-generated response and its sources."""
+    """Answer the user's question with the RAG-generated response and its sources;
+    the request and its answer are saved in Postgres (support_requests table)."""
     rag_graph = request.app.state.rag_graph
-    answer, sources = await llm_chat(rag_graph, body.question)
+    postgres_pool = request.app.state.postgres_pool
+    answer, sources = await llm_chat(rag_graph, body.question, postgres_pool, body.ticket_id)
     return UserSupportResponse(answer=answer, sources=sources)
