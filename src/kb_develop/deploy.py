@@ -1,23 +1,28 @@
-"""Deploy the embedded chunks to the Qdrant vector database.
+"""Deploy the embedded chunks to the Qdrant vector database (shared by the Serve docs
+and the history tickets).
+
+The collection name is given by the caller (kb_develop/ingestion.py), which reads it from
+the settings: QDRANT_SERVE_GUIDE_COLLECTION for the Serve docs, QDRANT_TICKETS_COLLECTION
+for the history tickets. To keep the collection of an earlier ingestion, give a new name
+in the settings before the next ingestion; with the same name, the collection is rebuilt.
 
 Deploy steps (each function below says which step it implements):
 
-  Step 1. Recreate the collection: delete QDRANT_COLLECTION ("serve_guide") if it
-          exists, then create it empty, with two named vectors per point, for hybrid
+  Step 1. Create the collection, empty, with two named vectors per point, for hybrid
           search:
             - DENSE_VECTOR: the chunk's embedding (vector size of the embeddings,
               cosine distance), for semantic search;
             - SPARSE_VECTOR: BM25 keyword weights, for keyword search. The IDF
               modifier makes Qdrant apply the inverse document frequency of the
               collection at query time.
-          Every ingestion rebuilds the whole knowledge base, so chunks of pages that
-          were changed or removed do not stay behind.
+          If a collection with this name already exists, it is deleted first, so
+          chunks that were changed or removed at the source do not stay behind.
   Step 2. Build points: one Qdrant point per chunk. The point id is the chunk id; the
           dense vector is the chunk's embedding; the sparse vector is the chunk's
           "text" as a BM25_MODEL document, which Qdrant turns into BM25 weights on the
           server (needs Qdrant >= 1.15.2 and core.clients.qdrant_client(), which sends
-          documents to the server). All other chunk fields (text, content, headings,
-          breadcrumb, URLs, ...) are stored as the point's payload (metadata).
+          documents to the server). All other chunk fields (text, content, and the
+          metadata of the source) are stored as the point's payload.
   Step 3. Upload the points in batches of BATCH_SIZE, one awaited upsert per batch; a
           failed batch is retried up to MAX_RETRIES times with exponential backoff.
           Not the client's upload_points(): on AsyncQdrantClient it is not async but
@@ -25,7 +30,7 @@ Deploy steps (each function below says which step it implements):
   Step 4. Check: count the points in the collection; it must equal the number of chunks.
 
 The async Qdrant client (AsyncQdrantClient) is created by the caller
-(core.clients.qdrant_client()) and passed in; the collection name comes from core/config.py.
+(core.clients.qdrant_client()) and passed in.
 """
 
 import asyncio
@@ -39,8 +44,6 @@ from qdrant_client.models import (
     SparseVectorParams,
     VectorParams,
 )
-
-from core import config
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +61,11 @@ MAX_RETRIES = 3
 BASE_DELAY = 1.0
 
 
-# ------------------------- Step 1: recreate collection -----------------------
+# -------------------------- Step 1: create collection ------------------------
 
 async def recreate_collection(client, collection, vector_size):
-    """Step 1: delete the collection if it exists, then create it empty, with a dense
-    and a sparse (BM25) vector per point."""
+    """Step 1: create the collection empty, with a dense and a sparse (BM25) vector per
+    point; a collection that already has this name is deleted first."""
     if await client.collection_exists(collection):
         logger.info("Deleting existing collection %s", collection)
         await client.delete_collection(collection)
@@ -131,14 +134,13 @@ async def check_count(client, collection, expected):
 
 # --------------------------------- pipeline ----------------------------------
 
-async def deploy_chunks(client, chunks):
-    """Run Steps 1-4: put the embedded chunks into the Qdrant collection
-    QDRANT_COLLECTION, replacing what was there."""
+async def deploy_chunks(client, chunks, collection):
+    """Run Steps 1-4: put the embedded chunks into the Qdrant collection with the
+    given name, replacing what was there."""
     if not chunks:
         raise ValueError("no chunks to deploy")
-    collection = config.QDRANT_COLLECTION
 
-    # Step 1. Recreate the collection
+    # Step 1. Create the collection
     vector_size = len(chunks[0]["vector"])
     await recreate_collection(client, collection, vector_size)
 

@@ -2,7 +2,9 @@
 
 Endpoints:
   GET  /health           health check (see api/health.py)
-  POST /api/ingestion    start a knowledge base ingestion (see api/ingestion.py)
+  POST /api/ingestion/serve-docs  start a Serve docs ingestion (see api/ingestion.py)
+  POST /api/ingestion/tickets     start a history tickets ingestion from an uploaded zip
+                                  of masked tickets (see api/ingestion.py)
   POST /api/user-support answer a user's question with RAG (see api/user_support.py)
   GET  /demo             Gradio chat page to try the assistant (see demo/gradio_app.py;
                          off when ENABLE_DEMO=false)

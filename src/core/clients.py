@@ -42,13 +42,14 @@ def openai_client():
 def qdrant_client():
     """Async client for the Qdrant vector database at QDRANT_URL.
     It only connects on its first request, so the app can start while Qdrant is down.
-    QDRANT_COLLECTION is checked here too, so a missing collection name stops the app
-    at startup instead of failing at the end of an ingestion.
+    QDRANT_SERVE_GUIDE_COLLECTION (the Serve docs collection, which the chat queries) is
+    checked here too, so a missing collection name stops the app at startup instead of
+    failing at the first question.
     cloud_inference=True makes the client send text documents (models.Document) to
     the Qdrant server (on our infrastructure), which turns them into BM25 vectors (see kb_develop/deploy.py);
     despite its name it works with any Qdrant server >= 1.15.2, not only Qdrant Cloud.
     Without it, the client would compute them itself and need the fastembed package."""
-    config.require("QDRANT_URL", "QDRANT_API_KEY", "QDRANT_COLLECTION")
+    config.require("QDRANT_URL", "QDRANT_API_KEY", "QDRANT_SERVE_GUIDE_COLLECTION")
 
     # With an http:// URL, qdrant-client warns that the API key is sent unencrypted.
     # That only matters when Qdrant runs on another machine, so for a local Qdrant

@@ -50,7 +50,7 @@ async def hybrid_search(question, question_vector, qdrant_client):
         limit=PREFETCH_LIMIT,
     )
     response = await qdrant_client.query_points(
-        collection_name=config.QDRANT_COLLECTION,
+        collection_name=config.QDRANT_SERVE_GUIDE_COLLECTION,
         prefetch=[dense_search, sparse_search],
         query=FusionQuery(fusion=Fusion.RRF),
         limit=TOP_K,
@@ -96,7 +96,7 @@ async def retrieve(state, openai_client, qdrant_client, openllm_semaphore):
     question_vector = await embed_question(state["question"], openai_client, openllm_semaphore)
 
     # Step 2. Hybrid search
-    logger.info("Step 2: hybrid search in %s", config.QDRANT_COLLECTION)
+    logger.info("Step 2: hybrid search in %s", config.QDRANT_SERVE_GUIDE_COLLECTION)
     hits = await hybrid_search(state["question"], question_vector, qdrant_client)
 
     # Step 3. Select chunks

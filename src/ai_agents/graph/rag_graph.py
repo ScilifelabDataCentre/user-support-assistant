@@ -27,7 +27,7 @@ def route_after_guard(state):
 def build_rag_graph(openai_client, qdrant_client):
     """Build and compile the RAG graph (Steps 0-6 in three nodes); the async API clients
     (AsyncOpenAI, AsyncQdrantClient) and the semaphore are bound to the nodes here."""
-    config.require("EMBEDDING_MODEL", "LLM_MODEL", "QDRANT_COLLECTION")
+    config.require("EMBEDDING_MODEL", "LLM_MODEL", "QDRANT_SERVE_GUIDE_COLLECTION")
 
     # Shared by all questions: at most OPENLLM_MAX_CONCURRENCY requests to the LLM /
     # embedding API at the same time (Steps 1 and 5)

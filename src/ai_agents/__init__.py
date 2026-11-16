@@ -10,7 +10,7 @@ generate_answer (Steps 4-6). Each node is one file in nodes/, with one function 
   Step 1. Embed the question: turn the question into a dense vector with
           EMBEDDING_MODEL, the same model the chunks were embedded with
           (see kb_develop/embed.py).
-  Step 2. Hybrid search: one Qdrant query on QDRANT_COLLECTION that runs two searches
+  Step 2. Hybrid search: one Qdrant query on QDRANT_SERVE_GUIDE_COLLECTION that runs two searches
           and fuses their results with Reciprocal Rank Fusion (RRF, by rank only):
             - dense: the question vector against the chunks' dense vector (meaning);
             - sparse: the question as a BM25 document against the chunks' sparse
