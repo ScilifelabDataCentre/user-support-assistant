@@ -9,24 +9,22 @@ graph did with it as one row of the support_requests table (db/support_requests.
 import logging
 import time
 
+from ai_agents.nodes.retrieve import CHUNK_METADATA_FIELDS
 from db.support_requests import save_request
 
 logger = logging.getLogger(__name__)
 
-# Chunk fields stored in support_requests.retrieved_chunks as they are
-STORED_CHUNK_FIELDS = ("score", "page_title", "headings", "section_url", "source_url", "type")
-
-
 def retrieved_chunks_record(final_state):
     """All chunks given to the LLM with the prompt, as stored in
-    support_requests.retrieved_chunks: best first, each with its rank and a copy of
-    its text; None if the question was blocked (nothing was retrieved)."""
+    support_requests.retrieved_chunks: in prompt order (Serve docs first, then history
+    tickets), each with its rank, source, score, the metadata fields of its source and
+    a copy of its text; None if the question was blocked (nothing was retrieved)."""
     if final_state["blocked"]:
         return None
     records = []
     for chunk in final_state["chunks"]:
-        record = {"rank": chunk["number"]}
-        for field in STORED_CHUNK_FIELDS:
+        record = {"rank": chunk["number"], "source": chunk["source"], "score": chunk["score"]}
+        for field in CHUNK_METADATA_FIELDS[chunk["source"]]:
             record[field] = chunk[field]
         record["content"] = chunk["text"]
         records.append(record)

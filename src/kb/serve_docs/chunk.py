@@ -289,6 +289,7 @@ def make_chunk(section, text, part, n_parts, page):
 
     header = " > ".join(crumbs + section.headings)
     return {
+        "source": "serve_docs",
         "page_title": crumbs[-1],
         "breadcrumb": crumbs,
         "headings": section.headings,

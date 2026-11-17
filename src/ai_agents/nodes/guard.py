@@ -1,4 +1,4 @@
-"""guard node of the RAG graph: Step 0 (see the steps in ai_agents/__init__.py).
+"""guard node of the RAG graph: Step 0 (see the steps in graph/rag_graph.py).
 
 Rule-based: it blocks the most obvious prompt injection attacks (override the rules,
 extract the system prompt, change the assistant's role, chat template tokens) before
@@ -16,7 +16,7 @@ import unicodedata
 
 logger = logging.getLogger(__name__)
 
-# The answer to a blocked question (Step 0)
+# The answer to a blocked question
 REFUSAL = (
     "I can only answer questions about SciLifeLab Serve. "
     "Please rephrase your question."
@@ -24,13 +24,13 @@ REFUSAL = (
 
 # Rules matched against the question as typed (casefolded): chat template tokens
 # that try to start a fake system / assistant turn. Not XML-like tags such as
-# <system>: users paste config files that may contain them (Step 0)
+# <system>: users paste config files that may contain them
 RAW_RULES = [
     ("chat template token",
      re.compile(r"<\|[a-z_]+\|>|\[/?inst\]|<</?sys>>")),
 ]
 
-# What the assistant is told it now is, in "you are now ..." (Step 0). Not any word:
+# What the assistant is told it now is, in "you are now ...". Not any word:
 # "it says you are now logged out" is a normal question
 ROLE = (r"(an?\s)?(dan|ai|assistant|chatbot|bot|model|unrestricted|unfiltered"
         r"|uncensored|evil|jailbroken|different|my\s\w+)")
@@ -39,7 +39,7 @@ ROLE_SV = (r"(en\s|ett\s)?(dan|ai|assistent|chattbot|bot|modell|obegränsad|ofil
 
 # Rules matched against the question as words only: casefolded, punctuation replaced
 # by single spaces, so "Ignore, all previous... instructions" matches like
-# "ignore all previous instructions" (Step 0)
+# "ignore all previous instructions"
 WORD_RULES = [
     # Override the rules
     ("override instructions",
@@ -111,7 +111,7 @@ WORD_RULES = [
 
 # A match is not an attack when the user is the subject: "can I ignore the previous
 # instructions", "how do I show the system message", "kan jag ignorera ...".
-# Matched against the text before the match (Step 0)
+# Matched against the text before the match
 USER_SUBJECT_RE = re.compile(
     r"\b(i|we|jag|vi)\s((can|could|should|must|may|might|will|would|need\sto"
     r"|have\sto|want\sto|kan|ska|bör|måste|vill|behöver|får|borde|skulle|kunde)\s)*$"
@@ -119,13 +119,13 @@ USER_SUBJECT_RE = re.compile(
 
 # Nor when it is about the user's own app or the docs: "show the system message in
 # my app", "ignore the previous instructions in the docs". Matched against the text
-# after the match (Step 0)
+# after the match
 OWN_CONTEXT_RE = re.compile(
     r"^(\s\w+){0,2}\s(in|of|for|from|on|i|för|från|på|av)\s"
     r"(my|our|the\sdocs|the\sdocumentation|min|mitt|mina|vår|vårt|våra|dokumentationen)\b"
 )
 
-# Anything that is not a letter or digit: replaced by a space in the words text (Step 0)
+# Anything that is not a letter or digit: replaced by a space in the words text
 NON_WORD_RE = re.compile(r"[\W_]+")
 
 

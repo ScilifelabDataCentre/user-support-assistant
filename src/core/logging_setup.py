@@ -3,6 +3,8 @@
 Every log line shows the id of the HTTP request it belongs to, e.g. [3f9a1c2e], so
 the lines of requests served at the same time can be told apart; "-" outside a
 request (startup, shutdown). app.py sets the id for each request (request_id_var).
+The ingestion requests put their source in front of it, e.g. [tickets 3f9a1c2e] (see
+api/ingestion.py).
 """
 
 import logging

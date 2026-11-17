@@ -26,8 +26,12 @@ SHOW_PROMPT = os.getenv("SHOW_PROMPT", "false").lower() == "true"
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-# Collection that holds the knowledge base chunks
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
+# Collection of the Serve docs chunks: the Serve docs ingestion deploys to it, and the
+# chat queries it
+QDRANT_SERVE_GUIDE_COLLECTION = os.getenv("QDRANT_SERVE_GUIDE_COLLECTION")
+# Collection of the history tickets chunks: the history tickets ingestion deploys to it,
+# and the chat queries it
+QDRANT_TICKETS_COLLECTION = os.getenv("QDRANT_TICKETS_COLLECTION")
 
 # Postgres (chat history)
 POSTGRES_HOST = os.getenv("POSTGRES_HOST")

@@ -1,5 +1,5 @@
 """generate_answer node of the RAG graph: Steps 4-6 (see the steps in
-ai_agents/__init__.py).
+graph/rag_graph.py).
 
 One function per step, then the node that runs them in order. The node takes the
 RagState (state.py) and returns the keys it adds; it also takes the async API client
@@ -12,50 +12,78 @@ import re
 import time
 
 from ai_agents.prompts.generate_answer_prompt import (
-    CHUNK_TEMPLATE,
-    SOURCE_LINE_TEMPLATE,
+    CHUNK_SEPARATOR,
+    NO_CHUNKS,
+    SERVE_DOCS_CHUNK_TEMPLATE,
+    SERVE_DOCS_SOURCE_LINE_TEMPLATE,
     SOURCES_HEADER,
     SYSTEM_PROMPT,
+    TICKET_CHUNK_TEMPLATE,
+    TICKET_SOURCE_LINE_TEMPLATE,
     USER_PROMPT_TEMPLATE,
 )
+from ai_agents.nodes.retrieve import CHUNK_METADATA_FIELDS, SERVE_DOCS
 from core import config
 
 logger = logging.getLogger(__name__)
 
 # Retries of a failed LLM request; the openai client waits between them with
-# exponential backoff (Step 5). Few, because the user is waiting.
+# exponential backoff. Few, because the user is waiting.
 MAX_RETRIES = 2
-# Seconds before an LLM request is given up (Step 5)
+# Seconds before an LLM request is given up
 LLM_TIMEOUT = 120.0
-# Low temperature: answers stay close to the documentation (Step 5)
+# Low temperature: answers stay close to the chunks
 TEMPERATURE = 0.2
-# Reasoning that some models (e.g. Qwen3) write before the answer; removed (Step 5)
+# Reasoning that some models (e.g. Qwen3) write before the answer; removed
 THINK_RE = re.compile(r"<think>.*?</think>", re.S)
 # A citation in the answer, with the spaces before it: " [1]", or several numbers in
 # one bracket like " [1, 3]". Not right after a letter or digit, so code like x[1] is
-# not a citation (Step 6)
+# not a citation
 CITATION_RE = re.compile(r"[ \t]*(?<!\w)\[(\d+(?:\s*,\s*\d+)*)\]")
-# Chunk fields returned as a source's metadata, besides its new number (Step 6)
-SOURCE_FIELDS = ("page_title", "headings", "section_url", "source_url", "type")
 
 
 # ---------------------------- Step 4: build prompt ---------------------------
 
-def build_prompt(question, chunks):
-    """Step 4: the chat messages: the system prompt, then the numbered chunks and the
-    question."""
-    chunk_texts = []
-    for chunk in chunks:
-        chunk_text = CHUNK_TEMPLATE.format(
+def format_chunk(chunk):
+    """Step 4: one chunk as it is written in the user message: its number and title
+    (a Serve docs chunk also its link), then its text."""
+    if chunk["source"] == SERVE_DOCS:
+        return SERVE_DOCS_CHUNK_TEMPLATE.format(
             number=chunk["number"],
             title=chunk["title"],
             url=chunk["section_url"],
             text=chunk["text"],
         )
-        chunk_texts.append(chunk_text)
+    return TICKET_CHUNK_TEMPLATE.format(
+        number=chunk["number"],
+        title=chunk["title"],
+        text=chunk["text"],
+    )
+
+
+def join_chunks(chunk_texts):
+    """Step 4: the chunks of one section of the user message, or NO_CHUNKS if the
+    section has none."""
+    if not chunk_texts:
+        return NO_CHUNKS
+    return CHUNK_SEPARATOR.join(chunk_texts)
+
+
+def build_prompt(question, chunks):
+    """Step 4: the chat messages: the system prompt, then the numbered chunks (the
+    Serve docs chunks and the history tickets in separate sections) and the question."""
+    serve_docs_texts = []
+    ticket_texts = []
+    for chunk in chunks:
+        chunk_text = format_chunk(chunk)
+        if chunk["source"] == SERVE_DOCS:
+            serve_docs_texts.append(chunk_text)
+        else:
+            ticket_texts.append(chunk_text)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
-        chunks="\n\n---\n\n".join(chunk_texts),
+        serve_docs_chunks=join_chunks(serve_docs_texts),
+        ticket_chunks=join_chunks(ticket_texts),
         question=question,
     )
     messages = [
@@ -101,11 +129,24 @@ def remove_citations(answer):
     return CITATION_RE.sub("", answer)
 
 
+def format_source_line(chunk, number):
+    """Step 6: one line of the "Sources:" list: the source's new number and the
+    chunk's title; a Serve docs chunk also its link. A history ticket has no link:
+    its title names the ticket ID, subject and subcategory."""
+    if chunk["source"] == SERVE_DOCS:
+        return SERVE_DOCS_SOURCE_LINE_TEMPLATE.format(
+            number=number,
+            title=chunk["title"],
+            url=chunk["section_url"],
+        )
+    return TICKET_SOURCE_LINE_TEMPLATE.format(number=number, title=chunk["title"])
+
+
 def add_sources(answer, chunks):
     """Step 6: keep the chunks the answer cites as its sources (metadata only),
-    renumbered 1..n in fused order; remove the [n] citations from the answer and
-    append the sources to it as a "Sources:" list; return (answer, sources).
-    Nothing cited: no sources, no "Sources:" list."""
+    renumbered 1..n in chunk order (Serve docs first, then history tickets); remove
+    the [n] citations from the answer and append the sources to it as a "Sources:"
+    list; return (answer, sources). Nothing cited: no sources, no "Sources:" list."""
     cited = cited_numbers(answer)
     logger.info("Answer cites chunks %s", sorted(cited))
     answer = remove_citations(answer)
@@ -116,19 +157,18 @@ def add_sources(answer, chunks):
         if chunk["number"] not in cited:
             continue
         number = len(sources) + 1
-        source = {"number": number}
-        for field in SOURCE_FIELDS:
+        source = {"number": number, "source": chunk["source"]}
+        for field in CHUNK_METADATA_FIELDS[chunk["source"]]:
             source[field] = chunk[field]
         sources.append(source)
-        source_line = SOURCE_LINE_TEMPLATE.format(
-            number=number,
-            title=chunk["title"],
-            url=chunk["section_url"],
-        )
-        source_lines.append(source_line)
-        headings = " > ".join(chunk["headings"])
-        logger.info("Source [%d] = chunk [%d]: %s | %s", number, chunk["number"],
-                    chunk["page_title"], headings)
+        source_lines.append(format_source_line(chunk, number))
+        if chunk["source"] == SERVE_DOCS:
+            headings = " > ".join(chunk["headings"])
+            logger.info("Source [%d] = chunk [%d]: Serve docs: %s | %s", number, chunk["number"],
+                        chunk["page_title"], headings)
+        else:
+            logger.info("Source [%d] = chunk [%d]: Ticket: %s", number, chunk["number"],
+                        chunk["incident_id"])
 
     if not sources:
         logger.warning("Answer cites no chunks: no sources")
