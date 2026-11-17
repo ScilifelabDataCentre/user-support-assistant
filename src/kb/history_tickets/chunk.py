@@ -43,7 +43,7 @@ import uuid
 # not always for logs, code and URLs; embed.py shortens a text the model still refuses.
 MAX_EMBED_CHARS = 20000
 
-# Role of an email in the masked tickets -> its label in the text (Step 2)
+# Role of an email in the masked tickets -> its label in the text
 ROLE_LABELS = {"USER": "User", "SUPPORT": "Support"}
 
 

@@ -14,10 +14,13 @@ CREATE TABLE IF NOT EXISTS support_requests (
     guardrail_blocked  BOOLEAN NOT NULL,
     -- Query after rewriting (NULL if blocked, or while there is no rewriter)
     rewritten_query    TEXT,
-    -- All chunks given to the LLM with the prompt, best first: an array of {rank,
-    -- score, page_title, headings, section_url, source_url, type, content}
-    -- (NULL if blocked). A copy of the text, not Qdrant ids: a redeploy rebuilds the
-    -- collection.
+    -- All chunks given to the LLM with the prompt, in prompt order (Serve docs first,
+    -- then history tickets): an array of {rank, source, score, ..., content}, where
+    -- ... is page_title, headings, section_url, source_url, type for a chunk with
+    -- source "serve_docs", and incident_id, subcategory, subject for one with source
+    -- "history_tickets" (NULL if blocked). Rows saved before the history tickets were
+    -- added have no source: all their chunks are Serve docs chunks. A copy of the
+    -- text, not Qdrant ids: a redeploy rebuilds the collection.
     retrieved_chunks   JSONB,
     -- Generated response, or the refusal if blocked
     suggested_response TEXT NOT NULL,

@@ -1,8 +1,31 @@
-"""Graph builder of the RAG graph: adds the nodes (nodes/), connects them and compiles.
+"""RAG graph: answer a user's question from the knowledge base (the Serve docs and the
+history tickets).
+
+RAG steps, run by three LangGraph nodes (one file per node in nodes/, one function per
+step):
+
+  guard node:
+    Step 0. Guard: block prompt injection
+
+  retrieve node:
+    Step 1. Embed the question
+    Step 2. Hybrid search, in the Serve docs and the history tickets collections
+    Step 3. Select chunks
+
+  generate_answer node:
+    Step 4. Build the prompt
+    Step 5. Call the LLM
+    Step 6. Add sources
+
+Graph:
+
+  START -> guard -> retrieve -> generate_answer -> END
+             |
+             +-> END (question blocked)
 
 build_rag_graph() is called once, at startup (see app.py), with the shared async API
 clients (core/clients.py); llm_chat.py runs the compiled graph for each question with
-ainvoke().
+ainvoke(). The whole path is async: nothing on it may block (no sync network calls).
 """
 
 import asyncio
@@ -27,10 +50,9 @@ def route_after_guard(state):
 def build_rag_graph(openai_client, qdrant_client):
     """Build and compile the RAG graph (Steps 0-6 in three nodes); the async API clients
     (AsyncOpenAI, AsyncQdrantClient) and the semaphore are bound to the nodes here."""
-    config.require("EMBEDDING_MODEL", "LLM_MODEL", "QDRANT_SERVE_GUIDE_COLLECTION")
+    config.require("EMBEDDING_MODEL", "LLM_MODEL", "QDRANT_SERVE_GUIDE_COLLECTION", "QDRANT_TICKETS_COLLECTION")
 
-    # Shared by all questions: at most OPENLLM_MAX_CONCURRENCY requests to the LLM /
-    # embedding API at the same time (Steps 1 and 5)
+    # Shared by all questions: at most OPENLLM_MAX_CONCURRENCY requests to the LLM / embedding API at the same time
     openllm_semaphore = asyncio.Semaphore(config.OPENLLM_MAX_CONCURRENCY)
 
     graph = StateGraph(RagState)
@@ -54,7 +76,7 @@ def build_rag_graph(openai_client, qdrant_client):
         partial(generate_answer, openai_client=openai_client, openllm_semaphore=openllm_semaphore),
     )
 
-    # Edges: guard (Step 0) -> retrieve (Steps 1-3) -> generate_answer (Steps 4-6);
+    # Edges: guard -> retrieve -> generate_answer;
     # a blocked question ends after guard
     graph.add_edge(START, "guard")
     graph.add_conditional_edges("guard", route_after_guard, ["retrieve", END])

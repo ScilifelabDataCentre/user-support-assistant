@@ -4,8 +4,10 @@ POST /api/user-support takes the user's question as a string (and optionally the
 ticket ID from the ticketing system) and returns one JSON
 response (no streaming):
   - answer: the full RAG-generated answer, followed by a "Sources:" list of the
-    documentation sections it uses, numbered 1..n, with their links;
-  - sources: the metadata of those sections, each with its "number" in that list.
+    documentation sections (with their links) and history tickets (ticket ID, subject,
+    subcategory) it uses, numbered 1..n;
+  - sources: the metadata of those sections and tickets, each with its "number" in
+    that list.
 
 The answer comes from the LLM chat service (ai_agents/llm_chat.py), which runs the
 RAG graph built once at startup (see app.py). The endpoint is async, so one process
@@ -28,21 +30,30 @@ class UserSupportRequest(BaseModel):
 
 
 class Source(BaseModel):
-    """A documentation section the answer uses."""
+    """A documentation section or a history ticket the answer uses. "source" says
+    which; the fields of the other kind are null."""
 
     number: int = Field(description='Its number in the "Sources:" list, 1..n.')
-    page_title: str = Field(description="Title of the docs page.")
-    headings: list[str] = Field(description="Heading path of the section within the page.")
-    section_url: str = Field(description="Link to the section on the SciLifeLab Serve site.")
-    source_url: str = Field(description="Link to the whole docs page.")
-    type: str = Field(description='"section", or "faq" for an FAQ question + answer.')
+    source: str = Field(description='"serve_docs" for a documentation section, "history_tickets" for a ticket.')
+
+    # A documentation section (source "serve_docs")
+    page_title: str | None = Field(default=None, description="Title of the docs page.")
+    headings: list[str] | None = Field(default=None, description="Heading path of the section within the page.")
+    section_url: str | None = Field(default=None, description="Link to the section on the SciLifeLab Serve site.")
+    source_url: str | None = Field(default=None, description="Link to the whole docs page.")
+    type: str | None = Field(default=None, description='"section", or "faq" for an FAQ question + answer.')
+
+    # A history ticket (source "history_tickets")
+    incident_id: str | None = Field(default=None, description="ID of the ticket.")
+    subcategory: str | None = Field(default=None, description="Subcategory of the ticket, if it has one.")
+    subject: str | None = Field(default=None, description="Subject of the ticket.")
 
 
 class UserSupportResponse(BaseModel):
     """Response of POST /api/user-support."""
 
     answer: str = Field(description='The full answer, followed by its "Sources:" list.')
-    sources: list[Source] = Field(description="Metadata of the sections the answer uses.")
+    sources: list[Source] = Field(description="Metadata of the sections and tickets the answer uses.")
 
 
 @router.post("", response_model=UserSupportResponse)

@@ -14,7 +14,7 @@ import uvicorn
 
 SRC_DIR = Path(__file__).resolve().parent / "src"
 
-# Let Python find the modules in src/ (config, app, api, kb_develop, ...).
+# Let Python find the modules in src/ (config, app, api, kb, ...).
 sys.path.insert(0, str(SRC_DIR))
 
 from core import config  # noqa: E402  (needs src/ on the path first)

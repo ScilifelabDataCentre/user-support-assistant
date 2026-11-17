@@ -11,7 +11,7 @@
                                   request; on the API docs page (/docs), choose the
                                   file and press Execute.
 
-Both return at once with 202 Accepted; the ingestion (see kb_develop/ingestion.py) runs
+Both return at once with 202 Accepted; the ingestion (see kb/ingestion.py) runs
 in the background, because it takes longer than an HTTP request should wait. The
 content of the uploaded zip is read before the response, because the upload is closed
 when the response is sent; a file that is not a zip is refused with 400 Bad Request.
@@ -34,8 +34,7 @@ import zipfile
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
 
-from core import config
-from kb_develop.ingestion import run_serve_docs_ingestion, run_tickets_ingestion
+from kb.ingestion import run_serve_docs_ingestion, run_tickets_ingestion
 
 logger = logging.getLogger(__name__)
 
@@ -108,15 +107,10 @@ async def start_tickets_ingestion(request: Request, background_tasks: Background
 
     file: a zip of the masked tickets, one JSON file per ticket (the "tickets" folder
     of a masking run, zipped)."""
-    # The collection the tickets are deployed to; checked here, so a missing name is
-    # reported in the response instead of failing in the background.
-    if not config.QDRANT_TICKETS_COLLECTION:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            "QDRANT_TICKETS_COLLECTION is not set (set it in dev.env or the environment).")
     await take_lock()
 
     # Read the content of the uploaded zip into memory, before the response: the upload
-    # is closed when the response is sent. The ingestion loads the tickets from it (Step 1).
+    # is closed when the response is sent. The ingestion loads the tickets from it.
     try:
         zip_bytes = await file.read()
     except BaseException:

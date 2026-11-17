@@ -6,15 +6,17 @@ from typing import TypedDict
 class RagState(TypedDict, total=False):
     """The graph starts with "question"; each node adds its own keys."""
 
-    # Input: the user's question
+    # The user's question
     question: str
-    # guard (Step 0): True if the question matched a prompt injection rule; the graph
-    # then ends, with the refusal as "answer" and no "sources"
+
+    # True if the question is blocked as prompt injection; the graph then ends
     blocked: bool
-    # retrieve (Steps 1-3): the selected chunks: {"number", "title", "page_title",
-    # "headings", "section_url", "source_url", "type", "text", "score" (RRF)}
+
+    # The chunks given to the LLM, numbered 1..n: Serve docs first, then history tickets
     chunks: list
-    # generate_answer (Steps 4-6): the LLM's answer followed by its "Sources:" list
+
+    # The answer, followed by its "Sources:" list
     answer: str
-    # generate_answer (Step 6): metadata of the chunks the answer cites, renumbered 1..n
+
+    # Metadata of the chunks the answer cites, renumbered 1..n
     sources: list

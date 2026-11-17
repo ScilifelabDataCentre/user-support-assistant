@@ -1,7 +1,7 @@
 """Deploy the embedded chunks to the Qdrant vector database (shared by the Serve docs
 and the history tickets).
 
-The collection name is given by the caller (kb_develop/ingestion.py), which reads it from
+The collection name is given by the caller (kb/ingestion.py), which reads it from
 the settings: QDRANT_SERVE_GUIDE_COLLECTION for the Serve docs, QDRANT_TICKETS_COLLECTION
 for the history tickets. To keep the collection of an earlier ingestion, give a new name
 in the settings before the next ingestion; with the same name, the collection is rebuilt.
@@ -47,17 +47,17 @@ from qdrant_client.models import (
 
 logger = logging.getLogger(__name__)
 
-# Names of the two vectors of every point (Steps 1, 2); the search uses the same names.
+# Names of the two vectors of every point; the search uses the same names.
 DENSE_VECTOR = "dense"
 SPARSE_VECTOR = "sparse"
-# Qdrant's built-in BM25 model, run on the Qdrant server (Step 2); the search must
+# Qdrant's built-in BM25 model, run on the Qdrant server; the search must
 # use the same model for the query.
 BM25_MODEL = "Qdrant/bm25"
-# Points per upload request (Step 3)
+# Points per upload request
 BATCH_SIZE = 64
-# Retries for a failed upload batch (Step 3)
+# Retries for a failed upload batch
 MAX_RETRIES = 3
-# Seconds before the first retry of a batch; doubled for each next retry (Step 3)
+# Seconds before the first retry of a batch; doubled for each next retry
 BASE_DELAY = 1.0
 
 

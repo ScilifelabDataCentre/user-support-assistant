@@ -32,18 +32,18 @@ logger = logging.getLogger(__name__)
 
 BASE = "https://serve.scilifelab.se"
 DIR_URL = f"{BASE}/docs/_dir/"
-# Seconds to wait between requests (Step 2)
+# Seconds to wait between requests
 DELAY = 1
-# Seconds before a request is given up (Steps 1, 2)
+# Seconds before a request is given up
 TIMEOUT = 30
 
-# Fenced code blocks and inline code spans; links inside them are not fixed (Step 3)
+# Fenced code blocks and inline code spans; links inside them are not fixed
 CODE_RE = re.compile(r"(^(?:```|~~~).*?^(?:```|~~~)[^\n]*$|`[^`\n]+`)", re.S | re.M)
 # [text](url "title") and ![alt](url "title")
 INLINE_LINK_RE = re.compile(r"(\]\()(\s*<?)([^)\s>]+)(>?)((?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\))")
 # [id]: url
 REF_LINK_RE = re.compile(r"^(\s{0,3}\[[^\]]+\]:\s*)(\S+)", re.M)
-# The [toc] macro, which only renders on the site (Step 2)
+# The [toc] macro, which only renders on the site
 TOC_RE = re.compile(r"^[ \t]*\[toc\][ \t]*\n?", re.I | re.M)
 # A URL that starts with a scheme, e.g. "https:" or "mailto:"
 SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")

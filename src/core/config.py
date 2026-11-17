@@ -29,7 +29,8 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 # Collection of the Serve docs chunks: the Serve docs ingestion deploys to it, and the
 # chat queries it
 QDRANT_SERVE_GUIDE_COLLECTION = os.getenv("QDRANT_SERVE_GUIDE_COLLECTION")
-# Collection of the history tickets chunks: the history tickets ingestion deploys to it
+# Collection of the history tickets chunks: the history tickets ingestion deploys to it,
+# and the chat queries it
 QDRANT_TICKETS_COLLECTION = os.getenv("QDRANT_TICKETS_COLLECTION")
 
 # Postgres (chat history)

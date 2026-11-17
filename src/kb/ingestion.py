@@ -43,12 +43,12 @@ import asyncio
 import logging
 
 from core import config
-from kb_develop.deploy import deploy_chunks
-from kb_develop.embed import embed_chunks
-from kb_develop.history_tickets.chunk import chunk_tickets
-from kb_develop.history_tickets.load import get_tickets
-from kb_develop.serve_docs.chunk import chunk_pages
-from kb_develop.serve_docs.crawl import crawl
+from kb.deploy import deploy_chunks
+from kb.embed import embed_chunks
+from kb.history_tickets.chunk import chunk_tickets
+from kb.history_tickets.load import get_tickets
+from kb.serve_docs.chunk import chunk_pages
+from kb.serve_docs.crawl import crawl
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,6 @@ async def run_tickets_ingestion(zip_bytes, openai_client, qdrant_client):
     """Run the history tickets ingestion (Steps 1-4) for the uploaded zip of masked
     tickets (zip_bytes is the content of the zip file), with the given async clients
     (see core/clients.py)."""
-    config.require("QDRANT_TICKETS_COLLECTION")
-
     # Step 1. Load (in a worker thread: it unpacks the zip, see the module docstring)
     logger.info("Step 1: load")
     tickets = await asyncio.to_thread(get_tickets, zip_bytes)
